@@ -75,8 +75,8 @@ void Write32(HANDLE hDevice, DWORD64 Address, DWORD Value) {
 
 void Write64(HANDLE hDevice, DWORD64 Address, DWORD64 Value) {
 	DWORD Value1 = (DWORD)(Value >> 32);
-	DWORD Value2 = (DWORD)(Value << 32);
+	DWORD Value2 = (DWORD)(Value & 0xFFFFFFFF);
 	printf("Value 1: %d\nValue 2: %d\n", Value1, Value2);
-	WritePrimitive(hDevice, Address, 4, (DWORD)Value1);
-	WritePrimitive(hDevice, Address + 4, 4, (DWORD)Value2);
+	WritePrimitive(hDevice, Address, 4, (DWORD)Value2);
+	WritePrimitive(hDevice, Address + 4, 4, (DWORD)Value1);
 }
