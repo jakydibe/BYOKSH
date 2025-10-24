@@ -1,0 +1,102 @@
+#ifndef UTILS_H
+#define UTILS_H
+
+#include <Windows.h>
+#include "EzPdb.h"
+#include <Psapi.h>
+
+
+#define IOCTL_WRITE		0x8000204C
+#define IOCTL_READ		0x80002048
+
+
+#ifndef STATUS_INFO_LENGTH_MISMATCH
+#define STATUS_INFO_LENGTH_MISMATCH ((NTSTATUS)0xC0000004L)
+#endif
+
+#define STATUS_SUCCESS ((NTSTATUS)0x00000000)
+
+//#define SystemModuleInformation 11
+
+
+struct RtcoreRWStruct {
+	BYTE	pad1[8]; // 0 --> 8
+	DWORD64 Address; // 8 --> 16
+	BYTE	pad2[4]; // 16--> 20
+	DWORD32 offsetStrano; // 20 --> 24
+	DWORD32 castControl; // 24 --> 28
+	DWORD32 Value; // 28 --> 36
+	BYTE	pad3[16];
+};
+
+
+DWORD ReadPrimitive(HANDLE,DWORD64, DWORD32);
+
+DWORD WritePrimitive(HANDLE, DWORD64, DWORD32, DWORD32);
+
+BYTE Read8(HANDLE, DWORD64);
+
+WORD Read16(HANDLE, DWORD64);
+
+DWORD Read32(HANDLE, DWORD64);
+
+DWORD64 Read64(HANDLE, DWORD64);
+
+
+void Write8(HANDLE, DWORD64, BYTE);
+
+void Write16(HANDLE, DWORD64, WORD);
+
+void Write32(HANDLE, DWORD64, DWORD);
+
+void Write64(HANDLE, DWORD64, DWORD64);
+
+
+
+typedef struct _SYSTEM_MODULE_INFORMATION_ENTRY {
+    PVOID Section;
+    PVOID MappedBase;
+    PVOID ImageBase;    // Base address of the module
+    ULONG ImageSize;
+    ULONG Flags;
+    USHORT LoadOrderIndex;
+    USHORT InitOrderIndex;
+    USHORT LoadCount;
+    USHORT OffsetToFileName;
+    UCHAR FullPathName[256]; // Full path of the module
+} SYSTEM_MODULE_INFORMATION_ENTRY, * PSYSTEM_MODULE_INFORMATION_ENTRY;
+
+typedef struct _SYSTEM_MODULE_INFORMATION {
+    ULONG ModulesCount;
+    SYSTEM_MODULE_INFORMATION_ENTRY Modules[1];
+} SYSTEM_MODULE_INFORMATION, * PSYSTEM_MODULE_INFORMATION;
+
+//typedef NTSTATUS(WINAPI* NtQuerySystemInformation_t)(
+//    ULONG SystemInformationClass,
+//    PVOID SystemInformation,
+//    ULONG SystemInformationLength,
+//    PULONG ReturnLength
+//    );
+
+
+//typedef enum _SYSTEM_INFORMATION_CLASS {
+//    SystemBasicInformation = 0,
+//    SystemPerformanceInformation = 2,
+//    SystemTimeOfDayInformation = 3,
+//    SystemProcessInformation = 5,
+//    SystemProcessorPerformanceInformation = 8,
+//    SystemModuleInformation = 11,
+//    SystemInterruptInformation = 23,
+//    SystemExceptionInformation = 33,
+//    SystemRegistryQuotaInformation = 37,
+//    SystemLookasideInformation = 45,
+//    SystemCodeIntegrityInformation = 103,
+//    SystemPolicyInformation = 134,
+//} SYSTEM_INFORMATION_CLASS;
+
+
+EZPDB loadKernelOffsets();
+ULONG_PTR GetKernelBaseAddress();
+
+
+#endif // !UTILS_H
