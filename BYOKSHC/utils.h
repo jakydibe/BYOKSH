@@ -19,11 +19,13 @@
 //#define SystemModuleInformation 11
 
 
+
+
+
 struct RtcoreRWStruct {
 	BYTE	pad1[8]; // 0 --> 8
 	DWORD64 Address; // 8 --> 16
-	BYTE	pad2[4]; // 16--> 20
-	DWORD32 offsetStrano; // 20 --> 24
+	BYTE	pad2[8]; // 16--> 20
 	DWORD32 castControl; // 24 --> 28
 	DWORD32 Value; // 28 --> 36
 	BYTE	pad3[16];
@@ -51,6 +53,11 @@ void Write32(HANDLE, DWORD64, DWORD);
 
 void Write64(HANDLE, DWORD64, DWORD64);
 
+
+struct ModulesData {
+    CHAR    moduleName[256];
+    ULONG64 moduleBase;
+};
 
 
 typedef struct _SYSTEM_MODULE_INFORMATION_ENTRY {
@@ -97,6 +104,11 @@ typedef struct _SYSTEM_MODULE_INFORMATION {
 
 EZPDB loadKernelOffsets();
 ULONG_PTR GetKernelBaseAddress();
+
+VOID ListProcCallback(HANDLE);
+
+
+VOID DeleteProcCallback(HANDLE hDevice);
 
 
 #endif // !UTILS_H
