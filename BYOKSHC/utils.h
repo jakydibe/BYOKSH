@@ -53,7 +53,7 @@ void Write16(HANDLE, DWORD64, WORD);
 
 void Write32(HANDLE, DWORD64, DWORD);
 
-void Write64(HANDLE, DWORD64, DWORD64);
+void Write64(HANDLE hDevice, DWORD64 Address, DWORD64 Value);
 
 void WriteN(HANDLE hDevice, DWORD64 Address, BYTE* Value);
 
@@ -93,6 +93,17 @@ typedef struct _REGISTRY_CALLBACK_ITEM {
     DWORD64 Unknown2[2];
 } REGISTRY_CALLBACK_ITEM, * PREGISTRY_CALLBACK_ITEM;
 
+typedef struct OB_CALLBACK_ENTRY_t {
+    LIST_ENTRY CallbackList;                 // Linked into _OBJECT_TYPE.CallbackList
+    DWORD Operations;                 // Types of operations (create, duplicate, etc.)
+    DWORD Enabled;                            // Whether the callback is active
+    DWORD64 Entry;             // Pointer to the main registration entry
+    DWORD64 ObjectType;                 // Target object type (e.g., PsProcessType)
+    DWORD64 PreOperation; // Callback before handle creation
+    DWORD64 PostOperation;// Callback after handle creation
+    DWORD64 Lock;                         // Synchronization mechanism
+} OB_CALLBACK_ENTRY, * POB_CALLBACK_ENTRY;
+
 //typedef NTSTATUS(WINAPI* NtQuerySystemInformation_t)(
 //    ULONG SystemInformationClass,
 //    PVOID SystemInformation,
@@ -124,9 +135,11 @@ VOID ListProcCallback(HANDLE);
 VOID ListThreadCallback(HANDLE hDevice);
 VOID ListLoadImageCallback(HANDLE hDevice);
 VOID ListRegCallback(HANDLE hDevice);
+VOID ListObjCallback(HANDLE hDevice);
 
 VOID DeleteProcCallback(HANDLE hDevice);
 VOID DeleteThreadCallback(HANDLE hDevice);
 VOID DeleteLoadImageCallback(HANDLE hDevice);
+VOID DeleteRegCallback(HANDLE hDevice);
 
 #endif // !UTILS_H

@@ -76,6 +76,9 @@ int main() {
 		else if (strncmp(input, "listregcallback", 15) == 0) {
 			ListRegCallback(hDevice);
 		}
+		else if (strncmp(input, "listobjcallback", 15) == 0) {
+			ListObjCallback(hDevice);
+		}
 
 		else if (strncmp(input, "elproccallback", 14) == 0) {
 			DeleteProcCallback(hDevice);
@@ -85,6 +88,9 @@ int main() {
 		}
 		else if (strncmp(input, "elloadimagecallback", 19) == 0) {
 			DeleteLoadImageCallback(hDevice);
+		}
+		else if (strncmp(input, "elregcallback", 13) == 0) {
+			DeleteRegCallback(hDevice);
 		}
 		else if (strncmp(input, "exit", 4) == 0) {
 			exit(0);
