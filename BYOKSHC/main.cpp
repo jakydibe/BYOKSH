@@ -48,6 +48,8 @@ int main() {
 	
 	printf("Kernel base: %p\n", ntoskrnlBase);
 
+	printf("Downloading pdb files\n");
+
     pdb = loadKernelOffsets();
 
 
@@ -65,8 +67,27 @@ int main() {
 		if (strncmp(input, "listproccallback", 16) == 0) {
 			ListProcCallback(hDevice);
 		}
+		else if (strncmp(input, "listthreadcallback", 18) == 0) {
+			ListThreadCallback(hDevice);
+		}
+		else if (strncmp(input, "listloadimagecallback", 21) == 0) {
+			ListLoadImageCallback(hDevice);
+		}
+		else if (strncmp(input, "listregcallback", 15) == 0) {
+			ListRegCallback(hDevice);
+		}
+
 		else if (strncmp(input, "elproccallback", 14) == 0) {
 			DeleteProcCallback(hDevice);
+		}
+		else if (strncmp(input, "elthreadcallback", 16) == 0) {
+			DeleteThreadCallback(hDevice);
+		}
+		else if (strncmp(input, "elloadimagecallback", 19) == 0) {
+			DeleteLoadImageCallback(hDevice);
+		}
+		else if (strncmp(input, "exit", 4) == 0) {
+			exit(0);
 		}
 		else if (strncmp(input, "help", 4) == 0) {
 			printf("Usage: ");

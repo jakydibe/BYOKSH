@@ -44,6 +44,8 @@ DWORD Read32(HANDLE, DWORD64);
 
 DWORD64 Read64(HANDLE, DWORD64);
 
+VOID ReadN(HANDLE hDevice, DWORD64 Address, DWORD Size, BYTE* retArr);
+
 
 void Write8(HANDLE, DWORD64, BYTE);
 
@@ -52,6 +54,8 @@ void Write16(HANDLE, DWORD64, WORD);
 void Write32(HANDLE, DWORD64, DWORD);
 
 void Write64(HANDLE, DWORD64, DWORD64);
+
+void WriteN(HANDLE hDevice, DWORD64 Address, BYTE* Value);
 
 
 struct ModulesData {
@@ -77,6 +81,17 @@ typedef struct _SYSTEM_MODULE_INFORMATION {
     ULONG ModulesCount;
     SYSTEM_MODULE_INFORMATION_ENTRY Modules[1];
 } SYSTEM_MODULE_INFORMATION, * PSYSTEM_MODULE_INFORMATION;
+
+
+
+typedef struct _REGISTRY_CALLBACK_ITEM {
+    LIST_ENTRY Item;
+    DWORD64 Unknown1[2];
+    DWORD64 Context;
+    DWORD64 Function;
+    DWORD64 Altitude[2];
+    DWORD64 Unknown2[2];
+} REGISTRY_CALLBACK_ITEM, * PREGISTRY_CALLBACK_ITEM;
 
 //typedef NTSTATUS(WINAPI* NtQuerySystemInformation_t)(
 //    ULONG SystemInformationClass,
@@ -106,9 +121,12 @@ EZPDB loadKernelOffsets();
 ULONG_PTR GetKernelBaseAddress();
 
 VOID ListProcCallback(HANDLE);
-
+VOID ListThreadCallback(HANDLE hDevice);
+VOID ListLoadImageCallback(HANDLE hDevice);
+VOID ListRegCallback(HANDLE hDevice);
 
 VOID DeleteProcCallback(HANDLE hDevice);
-
+VOID DeleteThreadCallback(HANDLE hDevice);
+VOID DeleteLoadImageCallback(HANDLE hDevice);
 
 #endif // !UTILS_H

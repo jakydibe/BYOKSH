@@ -61,6 +61,16 @@ DWORD64 Read64(HANDLE hDevice, DWORD64 Address) {
 	return result;
 }
 
+VOID ReadN(HANDLE hDevice, DWORD64 Address, DWORD Size, BYTE* retArr) {
+	BYTE* customArr = (BYTE*)malloc(Size);
+	for (size_t i = 0; i < Size; i++) {
+		BYTE byte = Read8(hDevice, Address + i);
+		customArr[i] = byte;
+	}
+	memcpy(retArr, customArr, Size);
+	return;
+}
+
 void Write8(HANDLE hDevice, DWORD64 Address, BYTE Value) {
 	WritePrimitive(hDevice, Address, 1, (DWORD)Value);
 }
@@ -76,7 +86,16 @@ void Write32(HANDLE hDevice, DWORD64 Address, DWORD Value) {
 void Write64(HANDLE hDevice, DWORD64 Address, DWORD64 Value) {
 	DWORD Value1 = (DWORD)(Value >> 32);
 	DWORD Value2 = (DWORD)(Value & 0xFFFFFFFF);
-	printf("Value 1: %d\nValue 2: %d\n", Value1, Value2);
+	//printf("Value 1: %d\nValue 2: %d\n", Value1, Value2);
 	WritePrimitive(hDevice, Address, 4, (DWORD)Value2);
 	WritePrimitive(hDevice, Address + 4, 4, (DWORD)Value1);
+}
+
+void WriteN(HANDLE hDevice, DWORD64 Address, BYTE* Value) {
+	int writeSize = sizeof(Value);
+
+	for (size_t i = 0; i < writeSize; i++) {
+		Write8(hDevice, Address + i, Value[i]);
+	}
+
 }
