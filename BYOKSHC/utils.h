@@ -4,6 +4,8 @@
 #include <Windows.h>
 #include "EzPdb.h"
 #include <Psapi.h>
+#include <tlhelp32.h>
+
 
 
 #define IOCTL_WRITE		0x8000204C
@@ -130,6 +132,7 @@ typedef struct OB_CALLBACK_ENTRY_t {
 
 EZPDB loadKernelOffsets();
 ULONG_PTR GetKernelBaseAddress();
+DWORD64 FindProcessId(const char* processName);
 
 VOID ListProcCallback(HANDLE);
 VOID ListThreadCallback(HANDLE hDevice);
@@ -142,5 +145,8 @@ VOID DeleteThreadCallback(HANDLE hDevice);
 VOID DeleteLoadImageCallback(HANDLE hDevice);
 VOID DeleteRegCallback(HANDLE hDevice);
 VOID DeleteObjCallback(HANDLE hDevice);
+
+
+VOID BypassPpl(HANDLE hDevice, DWORD64 pid);
 
 #endif // !UTILS_H

