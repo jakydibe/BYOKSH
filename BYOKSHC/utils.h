@@ -148,5 +148,6 @@ VOID DeleteObjCallback(HANDLE hDevice);
 
 
 VOID BypassPpl(HANDLE hDevice, DWORD64 pid);
-
+VOID elevateProc(HANDLE hDevice, DWORD64 pid);
+VOID hideProc(HANDLE hDevice, DWORD64 pid);
 #endif // !UTILS_H
