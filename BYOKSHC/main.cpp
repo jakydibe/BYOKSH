@@ -134,7 +134,35 @@ int main() {
 			exit(0);
 		}
 		else if (strncmp(input, "help", 4) == 0) {
-			printf("Usage: ");
+			printf("Help menu:\n");
+
+			printf(" - listproccallback			- List process notify routines\n");
+			printf(" - listthreadcallback		- List thread notify routines\n");
+			printf(" - listloadimagecallback    - List load image notify routines\n");
+			printf(" - listregcallback          - List registry notify routines \n");
+			printf(" - listobjcallback          - List objects notify routines\n\n");
+			//printf(" - listmf               - List Minifilter drivers (only KMDebug)\n\n");
+
+			printf(" - elproccallback			- Eliminate process notify routine callback\n");
+			printf(" - elthreadcallback			- Eliminate thread notify routine callback\n");
+			printf(" - elloadimagecallback		- Eliminate load image notify routine callback\n");
+			printf(" - elregcallback			- Eliminate registry notify routine callback\n");
+			printf(" - elobjcallback			- Eliminate object notify routine callback\n\n");
+			//printf(" - elmfcallback         - Eliminate MiniFilter notify callbacks\n");
+
+
+			printf(" - disablewti				- disable ETW kernel provider\n");
+
+			printf(" - bypassppl <PID>			- Bypass PPL for a specific process by PID\n");
+			printf(" - bypassppllsass			- Bypass PPL for lsass.exe (Suggestion: Terminate EDR processes before)\n\n");
+
+			printf(" - elevateproc <PID>		- Elevate a specific process by PID using local system\n");
+			//printf(" - downGrade <PID>      - Downgrade a specific process by PID to non-PPL\n\n");
+
+			printf(" - hideproc <PID>			- Hide a specific process by PID\n");
+
+			printf(" - help						- Show this help menu\n");
+			printf(" - exit						- Exit the program\n");
 		}
 	}
 
