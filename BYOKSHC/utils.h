@@ -141,5 +141,6 @@ VOID DeleteProcCallback(HANDLE hDevice);
 VOID DeleteThreadCallback(HANDLE hDevice);
 VOID DeleteLoadImageCallback(HANDLE hDevice);
 VOID DeleteRegCallback(HANDLE hDevice);
+VOID DeleteObjCallback(HANDLE hDevice);
 
 #endif // !UTILS_H
