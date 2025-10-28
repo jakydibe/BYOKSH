@@ -841,3 +841,7 @@ VOID disableWTI(HANDLE hDevice) {
 	printf("[+] ETWTI ProviderEnableInfo Value = 0x%llx\n", (Read64(hDevice, providerEnableInfoAddress) & 0xFF));
 
 }
+
+VOID terminateProcess(HANDLE hDevice, DWORD pid) {
+	terminatePrimitive(hDevice, pid);
+}

