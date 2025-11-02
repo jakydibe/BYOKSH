@@ -5,8 +5,10 @@
 #include "EzPdb.h"
 #include <Psapi.h>
 #include <tlhelp32.h>
+#include <shlwapi.h>
 
 
+#pragma comment (lib, "Shlwapi.lib")
 
 #define IOCTL_WRITE		0x8000204C
 #define IOCTL_READ		0x80002048
@@ -140,6 +142,7 @@ typedef struct OB_CALLBACK_ENTRY_t {
 
 
 EZPDB loadKernelOffsets();
+EZPDB loadKernelOffsetsWithPath(std::string pdbPath);
 ULONG_PTR GetKernelBaseAddress();
 DWORD64 FindProcessId(const char* processName);
 
@@ -161,6 +164,7 @@ VOID elevateProc(HANDLE hDevice, DWORD64 pid);
 VOID hideProc(HANDLE hDevice, DWORD64 pid);
 VOID disableWTI(HANDLE hDevice);
 VOID terminateProcess(HANDLE hDevice, DWORD pid);
+VOID killer_callback(LPVOID lpParam);
 
 
 #endif // !UTILS_H

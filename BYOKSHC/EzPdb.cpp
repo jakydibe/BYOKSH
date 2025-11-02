@@ -167,9 +167,11 @@ std::string EzPdbDownload(
 	url += pdb_info->PdbFileName;
 
 	// download
+	printf("Siamo arrivati al download %s   %s\n", url.c_str(), pdbPath.c_str());
 	HRESULT hr = URLDownloadToFileA(NULL, url.c_str(), pdbPath.c_str(), NULL, NULL);
 	if (FAILED(hr))
 	{
+		printf("Download Fallito\n");
 		free(ImageBuffer);
 		return "";
 	}

