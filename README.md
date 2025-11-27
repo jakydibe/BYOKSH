@@ -32,7 +32,8 @@ Right Now it looks pretty stable, stabler than the Rootkit version(tho it has le
 5) Token downgrade(?)
 
 # Usage
-![alt text](image-1.png)
+<img width="1046" height="542" alt="image" src="https://github.com/user-attachments/assets/14ed97cc-0e76-4120-b623-035eaf0d5118" />
+
 
 # NOTE:
 Since it calculates offsets by downloading pdb of target file from internet, it needs admin privs to get ntoskrnl.exe and also if you need to load the driver it needs to  have admin privs.
